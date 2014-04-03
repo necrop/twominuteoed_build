@@ -22,7 +22,7 @@ TOP_LEVELS = EUROPEAN + NONEUROPEAN
 class LanguageFrequency(object):
 
     def __init__(self, **kwargs):
-        self.out_dir = kwargs.get('outDir')
+        self.out_dir = kwargs.get('out_dir')
         self.csv1 = os.path.join(self.out_dir, 'language_frequency.csv')
         self.csv2 = os.path.join(self.out_dir, 'language_entrycounts.csv')
 

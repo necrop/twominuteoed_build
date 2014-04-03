@@ -19,30 +19,29 @@ def dispatch():
 
 def analyse_language_frequency():
     from processes.languagefrequency import LanguageFrequency
-    analyser = LanguageFrequency(outDir=twominuteconfig.LANGUAGE_FREQUENCY_DIR,)
+    analyser = LanguageFrequency(out_dir=twominuteconfig.LANGUAGE_FREQUENCY_DIR,)
     analyser.store_values()
 
 
 def list_entries():
     from processes.entrylister import EntryLister
-    entry_lister = EntryLister(outFile=twominuteconfig.TIMELINE_DATA)
+    entry_lister = EntryLister(out_file=twominuteconfig.SOURCE_DATA)
     entry_lister.store_values()
 
 
 def prepare_json_files():
-    from processes.datapreparation import DataPreparation
-    data_prep = DataPreparation()
-    data_prep.load_data(languageCoordinates=twominuteconfig.LANGUAGE_COORDINATES,
-                        inFile=twominuteconfig.TIMELINE_DATA,
-                        includeEnglish=True,
-                        includeGermanic=True,)
+    from processes.jsonpreparation import JsonPreparation
+    data_prep = JsonPreparation()
+    data_prep.load_data(in_file=twominuteconfig.SOURCE_DATA,
+                        include_english=True,
+                        include_germanic=True,)
     data_prep.write(out_dir=twominuteconfig.DATAVIS_DIR,
                     words='words.json',
                     examples='examples.json',
-                    examples_log='two_min_oed_examples.txt',
                     languages='languages.json',
                     running_totals='running_totals.json',
-                    increase_rate='increase_rates.json',)
+                    increase_rate='increase_rates.json',
+                    examples_log=twominuteconfig.EXAMPLE_WORDS_LOG,)
 
 
 if __name__ == '__main__':

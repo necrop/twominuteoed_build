@@ -22,25 +22,22 @@ from lib.languageoverrides import LanguageOverrides
 class EntryLister(object):
 
     def __init__(self, **kwargs):
-        self.freq_dir = kwargs.get('frequencyDir')
-        self.vs_dir = kwargs.get('vitalStatisticsDir')
-        self.coords_file = kwargs.get('languageCoordinates')
-        self.out_file = kwargs.get('outFile')
+        self.out_file = kwargs.get('out_file')
 
     def store_values(self):
         print('Loading coordinates...')
-        coords = Coordinates(FILEPATH=self.coords_file)
+        coords = Coordinates()
         print('Checking language overrides...')
         overrides = LanguageOverrides().list_language_overrides()
         print('Loading OED vital statistics...')
-        vitalstats = VitalStatisticsCache(vitalStatisticsDir=self.vs_dir)
+        vitalstats = VitalStatisticsCache()
 
         entries = []
         iterator = FrequencyIterator(message='Listing entries')
         for entry in iterator.iterate():
             if (entry.has_frequency_table() and
-                not ' ' in entry.lemma and
-                not '-' in entry.lemma):
+                    not ' ' in entry.lemma and
+                    not '-' in entry.lemma):
                 language_breadcrumb = vitalstats.find(entry.id, field='language')
                 year = vitalstats.find(entry.id, field='first_date') or 0
 
@@ -63,6 +60,7 @@ class EntryLister(object):
                     frequency = freq_table.frequency(period='modern')
                     band = freq_table.band(period='modern')
                     row = (entry.lemma,
+                           entry.label,
                            entry.id,
                            year,
                            frequency,
@@ -80,14 +78,12 @@ class EntryLister(object):
 class EntryCache(object):
 
     def __init__(self, **kwargs):
-        self.coords_file = kwargs.get('languageCoordinates')
-        self.in_file = kwargs.get('inFile')
-        self.include_english = kwargs.get('includeEnglish', False)
-        self.include_germanic = kwargs.get('includeGermanic', False)
-        self.include_unspecified = kwargs.get('includeUnspecified', False)
+        self.in_file = kwargs.get('in_file')
+        self.include_english = kwargs.get('include_english', False)
+        self.include_germanic = kwargs.get('include_germanic', False)
+        self.include_unspecified = kwargs.get('include_unspecified', False)
         self.entries = list()
         self.cumulations = dict()
-        Coordinates(FILEPATH=self.coords_file)
 
     def load_data(self):
         self.entries = []
@@ -151,10 +147,8 @@ class Entry(object):
                                          twominuteconfig.END_YEAR)
 
     def __init__(self, row):
-        (self.lemma, self.id, self.year, self.frequency,
+        (self.lemma, self.label, self.id, self.year, self.frequency,
          self.band, self.language) = row
-        # self.lemma = self.lemma.decode('utf8')
-        # self.language = self.language.decode('utf8')
         self.year = int(self.year)
         self.band = int(self.band)
         self.frequency = float(self.frequency)
@@ -181,10 +175,10 @@ class Entry(object):
         Return a tuple containing (latitude, longitude)
         """
         try:
-            return self.__coordinates
+            return self._coordinates
         except AttributeError:
-            self.__coordinates = Entry.coords.randomize(self.language)
-            return self.__coordinates
+            self._coordinates = Entry.coords.randomize(self.language)
+            return self._coordinates
 
     def latitude(self):
         if self.coordinates() is None:

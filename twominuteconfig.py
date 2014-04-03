@@ -15,9 +15,10 @@ PIPELINE = (
 )
 
 BASE_DIR = os.path.join(lexconfig.OED_DIR, 'projects/twominuteoed')
-TIMELINE_DATA = os.path.join(BASE_DIR, 'timeline_data.csv')
+SOURCE_DATA = os.path.join(BASE_DIR, 'source_data.csv')
 LANGUAGE_COORDINATES = os.path.join(BASE_DIR, 'language_coordinates.csv')
 LANGUAGE_FREQUENCY_DIR = os.path.join(BASE_DIR, 'language_frequency')
+EXAMPLE_WORDS_LOG = os.path.join(BASE_DIR, 'two_minute_oed_example_words.xml')
 DATAVIS_DIR = os.path.join(BASE_DIR, 'twominuteoed/data')
 
 START_YEAR = 800

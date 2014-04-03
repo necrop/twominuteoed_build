@@ -1,5 +1,5 @@
 """
-DataPreparation -- Prepare JSON data files to be read by the D3 app
+JsonPreparation -- Prepare JSON data files to be read by the D3 app
 
 @author: James McCracken
 """
@@ -9,6 +9,7 @@ import random
 from collections import defaultdict
 import json
 import numpy
+from lxml import etree
 
 import twominuteconfig
 from processes.entrylister import EntryCache
@@ -21,7 +22,7 @@ LANGUAGE_GROUPS = twominuteconfig.LANGUAGE_GROUPS
 CENTRAL_POINT = twominuteconfig.CENTRAL_POINT
 
 
-class DataPreparation(object):
+class JsonPreparation(object):
 
     """
     Prepare JSON data files to be read by the D3 app.
@@ -37,8 +38,8 @@ class DataPreparation(object):
 
     def write(self, **kwargs):
         out_dir = kwargs.get('out_dir')
-        files = {k: os.path.join(out_dir, v) for k, v in
-            kwargs.items() if k != 'out_dir'}
+        examples_log_file = kwargs.get('examples_log')
+        files = {k: os.path.join(out_dir, v) for k, v in kwargs.items()}
         language_index = self._write_language_file(files['languages'])
         self._write_running_totals_file(files['running_totals'])
         self._write_increase_rate_file(files['increase_rate'])
@@ -46,7 +47,7 @@ class DataPreparation(object):
         entries = defaultdict(list)
         examples = {}
         for year, entry_list in self.groups:
-            if year >= START_YEAR and year <= END_YEAR:
+            if START_YEAR <= year <= END_YEAR:
                 for entry in entry_list:
                     entry.coordinates()
                 entry_list = _winnow(entry_list)
@@ -65,10 +66,11 @@ class DataPreparation(object):
                     ))
 
         _write_words_file(entries, files['words'])
-        _write_examples_file(examples, files['examples'], files['examples_log'])
+        _write_examples_file(examples, files['examples'], examples_log_file)
 
     def _write_running_totals_file(self, out_file):
         running_totals = {499: {group: 0 for group in LANGUAGE_GROUPS}}
+        running_counts = {499: {group: 0 for group in LANGUAGE_GROUPS}}
         for year in range(500, END_YEAR + 1):
             # Find the list of entries for this year
             entries = []
@@ -79,20 +81,26 @@ class DataPreparation(object):
 
             # Initially, set the running totals to be the same as last year's
             running_totals[year] = {}
+            running_counts[year] = {}
             for group in LANGUAGE_GROUPS:
                 running_totals[year][group] = running_totals[year - 1][group]
+                running_counts[year][group] = running_counts[year - 1][group]
             # ...then add on to the counts for this year
             for entry in [e for e in entries
                           if e.language_group() in LANGUAGE_GROUPS]:
                 running_totals[year][entry.language_group()] += entry.frequency
+                running_counts[year][entry.language_group()] += 1
 
-        minified = {}
+        minified = {'summedfrequencies': {}, 'counts': {}}
         for year, vals in running_totals.items():
             if year >= START_YEAR:
-                this_year = []
+                this_year_sums = []
+                this_year_counts = []
                 for group in LANGUAGE_GROUPS:
-                    this_year.append(int(vals[group]))
-                minified[year] = this_year
+                    this_year_sums.append(int(vals[group]))
+                    this_year_counts.append(running_counts[year][group])
+                minified['summedfrequencies'][year] = this_year_sums
+                minified['counts'][year] = [int(n/100) * 100 for n in this_year_counts]
 
         with open(out_file, 'w') as filehandle:
             json.dump(minified, filehandle)
@@ -207,11 +215,11 @@ def _choose_examples(entries, year):
         east = min(filtered, key=lambda e: e.longitude())
         rnd1 = random.choice(filtered)  # throw in a random example
         rnd2 = random.choice(filtered)  # throw in a random example
-        choices = set([(e.id, e.lemma) for e in (nth, sth, east, west,
-                                                 rnd1, rnd2)])
+        choices = set([(e.id, e.lemma, e.label) for e in
+                       (nth, sth, east, west, rnd1, rnd2)])
         if len(choices) < 6:
             extra = random.choice(filtered)
-            choices.add((extra.id, extra.lemma,))
+            choices.add((extra.id, extra.lemma, extra.label))
         return choices
     else:
         return set()
@@ -229,19 +237,29 @@ def _write_examples_file(examples, out_file, log_file):
     for year in range(ANIMATION_START, END_YEAR + 1):
         if year not in examples:
             examples[year] = []
-    with open(out_file, 'w') as filehandle:
-        json.dump(examples, filehandle)
 
+    doc = etree.Element('entries')
+    for year in range(ANIMATION_START, END_YEAR + 1):
+        for entry in examples[year]:
+            k = etree.SubElement(doc, 'entry')
+            k.set('id', entry[0])
+            k.set('hw', entry[2])
     with open(log_file, 'w') as filehandle:
-        for year in range(ANIMATION_START, END_YEAR + 1):
-            for entry in examples[year]:
-                filehandle.write('%s\t%s\n' % (entry[0], entry[1]))
+        filehandle.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        filehandle.write(etree.tounicode(doc, pretty_print=True))
+
+    examples2 = {}
+    for year, entries in examples.items():
+        entries2 = [(e[0], e[1]) for e in entries]
+        examples2[year] = entries2
+    with open(out_file, 'w') as filehandle:
+        json.dump(examples2, filehandle)
 
 
 def _remove_vulgar(entries):
     swears = ('shit', 'fuck', 'bugger', 'cunt', 'piss',)
     entries2 = []
     for e in entries:
-        if not any ([swear in e.lemma for swear in swears]):
+        if not any([swear in e.lemma for swear in swears]):
             entries2.append(e)
     return entries2
